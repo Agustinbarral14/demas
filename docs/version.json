@@ -1,1 +1,1 @@
-{"version":"0.4.0","minimumConnectorVersion":"0.3.2","message":"Saldo de horas más claro, revisión de jornadas, exportación CSV y avisos de actualización."}
+{"version":"0.4.1","minimumConnectorVersion":"0.3.2","message":"Calendario completo con minutos por día, selector centrado y exportación a Excel con tabla y fechas uniformes."}

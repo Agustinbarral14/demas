@@ -1,15 +1,19 @@
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.0';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.1';
+import {makeCsv,makeXlsx} from './export.mjs?v=0.4.1';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.1';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.0';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.1';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
 const duration=(n,sign='')=>`${n>0?sign:''}${Math.floor(Math.abs(n)/60)}<span class="unit"> h </span>${String(Math.abs(n)%60).padStart(2,'0')}<span class="unit"> min</span>`;const plain=n=>`${Math.floor(Math.abs(n)/60)} h ${String(Math.abs(n)%60).padStart(2,'0')} min`;const count=n=>`${n} ${n===1?'vez':'veces'}`;
 function status(text){$('data-status').textContent=text}
 function setMonth(value){$('from').value=value;$('to').value=value;const select=$('month-select');if(![...select.options].some(o=>o.value===value)){const option=new Option(monthLabel(value),value);select.add(option,0)}select.value=value;}
 function renderMonths(){
- const selected=$('from').value,current=localDate().slice(0,7),months=[...new Set([...data.map(r=>r.date.slice(0,7)),current,...(validMonth(selected)?[selected]:[])])].sort().reverse();
- $('month-select').replaceChildren(...months.map(m=>new Option(monthLabel(m),m)));$('month-select').value=months.includes(selected)?selected:current;
- $('month-button').textContent=monthLabel($('month-select').value);$('month-menu').replaceChildren();
+ const selected=$('from').value,current=localDate().slice(0,7),months=registeredMonths(data).reverse();
+ $('month-select').replaceChildren(...months.map(m=>new Option(monthLabel(m),m)));$('month-select').value=months.includes(selected)?selected:'';
+ $('month-button').textContent=monthLabel(selected);$('month-menu').replaceChildren();$('month-button').disabled=!months.length;
+ $('previous-month').disabled=!neighboringMonth(selected,-1,data);$('next-month').disabled=!neighboringMonth(selected,1,data);
+ $('current-month').setAttribute('aria-pressed',String(selected===current));
  let year='';for(const m of months){if(year!==m.slice(0,4)){year=m.slice(0,4);const label=document.createElement('div');label.className='month-year';label.textContent=year;$('month-menu').append(label)}const button=document.createElement('button');button.type='button';button.textContent=monthNames[+m.slice(5)]+(m===current?' · Actual':'');button.setAttribute('aria-pressed',String(m===$('month-select').value));button.addEventListener('click',()=>{setMonth(m);setFilter('all');compute();renderMonths();closeMonths()});$('month-menu').append(button)}
 }
 function closeMonths(){$('month-menu').hidden=true;$('month-button').setAttribute('aria-expanded','false')}
@@ -29,9 +33,13 @@ function render(){const from=$('from').value,to=$('to').value,has=rows.length>0,
  $('before-label').innerHTML=`Antes de las ${$('start').value}<b>${has?plain(totals.before):'—'}</b>`;$('after-label').innerHTML=`Después de las ${$('end').value}<b>${has?plain(totals.after):'—'}</b>`;
  $('late-caption').textContent=`Después de las ${$('start').value}`;$('early-caption').textContent=`Antes de las ${$('end').value}`;$('schedule-label').textContent=`${$('start').value} a ${$('end').value}`;
  $('late-count').textContent=has?count(lateN):'—';$('early-count').textContent=has?count(earlyN):'—';$('all-count').textContent=rows.length;$('tab-late-count').textContent=lateN;$('tab-early-count').textContent=earlyN;
- const chartRows=rows.filter(r=>!r.saturday);const scale=Math.max(70,...chartRows.map(r=>Math.max(r.before+r.after,r.early+r.late)));$('chart').style.gridTemplateColumns=has?`repeat(${Math.max(1,chartRows.length)},minmax(${from===to?22:75}px,1fr))`:'1fr';
- $('chart').innerHTML=chartRows.length?chartRows.map(r=>`<div class="day" title="${dateLabel(r.date)}: ${plain(r.before+r.after)} extra; ${plain(r.late)} tarde; ${plain(r.early)} de salida anticipada${r.pending?' · provisional':''}"><div class="positive"><div class="bar" style="height:${(r.before+r.after)/scale*84}px"></div></div><div class="negative"><div class="bar" style="height:${(r.late+r.early)/scale*84}px;background:${r.late?'#c83d54':'#db7b31'}"></div></div><div class="day-label">${from===to?r.date.slice(8):dateLabel(r.date)}</div></div>`).join(''):'<div class="empty"><strong>Tu tiempo empieza con tus marcaciones.</strong><p>Conectá Lenox para ver tu resumen.</p></div>';
- document.querySelectorAll('.negative').forEach(el=>el.style.height=`${Math.max(20,...rows.map(r=>(r.late+r.early)/scale*84))}px`);$('chart-foot').classList.toggle('hidden',!has);$('clear-data').classList.toggle('hidden',!data.length);renderTable();renderEnhancements();
+ const chartRows=monthDays(from,rows),scale=Math.max(70,...chartRows.map(r=>Math.max(r.saturday?r.saturdayMinutes:r.before+r.after,r.early+r.late)));
+ $('chart').style.gridTemplateColumns=`repeat(${chartRows.length},minmax(24px,1fr))`;
+ $('chart').innerHTML=chartRows.map(r=>{const extra=r.saturday?r.saturdayMinutes:r.before+r.after;
+ const text=!r.hasMarks?`${dateLabel(r.date)} · Sin fichajes. No se calcularon minutos extras.`:`${dateLabel(r.date)} · ${extra} minutos extras${r.saturday?' de sábado, por separado':''} · ${r.late} minutos tarde · ${r.early} minutos de salida anticipada${r.pending?' · Provisional':''}`;
+ return `<div class="day${r.hasMarks?'':' no-marks'}" tabindex="0" title="${text}" aria-label="${text}" data-tooltip="${text}"><div class="positive"><div class="bar" style="height:${extra/scale*84}px;${r.saturday?'background:#8971ca':''}"></div></div><div class="negative"><div class="bar" style="height:${(r.late+r.early)/scale*84}px;background:${r.late?'#c83d54':'#db7b31'}"></div></div><div class="day-label">${Number(r.date.slice(8))}</div></div>`}).join('');
+ document.querySelectorAll('.negative').forEach(el=>el.style.height=`${Math.max(20,...chartRows.map(r=>(r.late+r.early)/scale*84))}px`);
+ $('chart-foot').classList.toggle('hidden',!has);$('clear-data').classList.toggle('hidden',!data.length);renderTable();renderEnhancements();
 }
 function renderTable(){const visible=rows.filter(r=>active==='all'||r[active]>0);const columns=active==='all'?['Fecha','Primer fichaje','Último fichaje','Extras','Tarde','Salida anticipada']:active==='late'?['Fecha','Hora de llegada','Horario esperado','Tiempo tarde']:['Fecha','Último fichaje','Horario esperado','Tiempo anticipado'];$('thead').innerHTML=`<tr>${columns.map(c=>`<th scope="col">${c}</th>`).join('')}</tr>`;
  $('tbody').innerHTML=visible.map(r=>{const date=dateLabel(r.date)+reviewMarkup(r);const cells=active==='all'?[date,r.first,r.last||'Pendiente',r.saturday?'<span class="caption">Sábado · por separado</span>':`<span class="green">+${plain(r.before+r.after)}</span>`,r.late?`<span class="event late">−${plain(r.late)}</span>`:'—',r.pending?'<span class="caption">En revisión</span>':r.early?`<span class="event">−${plain(r.early)}</span>`:'—']:active==='late'?[date,r.first,$('start').value,`<span class="event late">−${plain(r.late)}</span>`]:[date,r.last,$('end').value,`<span class="event">−${plain(r.early)}</span>`];return `<tr>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`}).join('');$('table').classList.toggle('hidden',!visible.length);$('empty').classList.toggle('hidden',!!visible.length);$('empty').innerHTML=!rows.length?'<strong>Sin marcaciones disponibles</strong><p>Conectá Lenox para consultar este mes.</p>':active==='late'?'<strong>No hubo llegadas tarde</strong><p>Los primeros fichajes están dentro del horario de referencia.</p>':'<strong>No hay salidas anticipadas confirmadas</strong><p>Hoy y los días sin último fichaje siguen pendientes.</p>';
@@ -48,9 +56,9 @@ $('sync-lenox').addEventListener('click',()=>sync(true,true));$('refresh').addEv
 async function sync(fromDialog=false,full=false){
  if(busy)return;busy=true;$('refresh').disabled=true;status('Leyendo tu historial de Lenox…');if(fromDialog)$('extension-state').textContent='Leyendo tu historial…';
  try{const hello=await callBridge('HELLO',{},2500);connectorVersion=hello.version;updateConnectorNotice();if(compareVersions(connectorVersion,releaseInfo?.minimumConnectorVersion||MIN_CONNECTOR)<0)throw Error('Actualizá el conector desde Mi conexión para leer el historial completo.');
- const history=full||!connected,current=localDate().slice(0,7);const result=await callBridge(history?'HISTORY':'SYNC',history?{}:{from:current,to:current});if(!Array.isArray(result.records))throw Error('El conector devolvió una respuesta inesperada.');
+ const firstConnection=!connected&&source==='empty',history=full||!connected,current=localDate().slice(0,7);const result=await callBridge(history?'HISTORY':'SYNC',history?{}:{from:current,to:current});if(!Array.isArray(result.records))throw Error('El conector devolvió una respuesta inesperada.');
  const incoming=result.records.length?parseMarks(result.records.map(r=>r.date+';'+r.first+';'+(r.last||'')).join('\n')):[];data=history?incoming:[...data.filter(r=>r.date.slice(0,7)!==current),...incoming];
- source='lenox';connected=true;bridge=true;loadedAt=new Date();$('source-title').textContent='Tu sesión de Lenox';status('Actualizado '+loadedAt.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' · '+result.markCount+' fichajes');renderMonths();compute();if(fromDialog)$('connection-dialog').close();
+ source='lenox';connected=true;bridge=true;loadedAt=new Date();$('source-title').textContent='Tu sesión de Lenox';status('Actualizado '+loadedAt.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' · '+result.markCount+' fichajes');if(firstConnection&&data.length&&!data.some(r=>r.date.slice(0,7)===$('from').value))setMonth(registeredMonths(data).at(-1));renderMonths();compute();if(fromDialog)$('connection-dialog').close();
  }catch(e){status('No se pudo actualizar: '+e.message+(loadedAt?' Se conserva la última lectura.':''));if(fromDialog)$('extension-state').textContent=e.message}
  finally{busy=false;$('refresh').disabled=false}
 }
@@ -73,17 +81,18 @@ function renderEnhancements(){
  $('saturday-card').hidden=!saturday.days;$('saturday-empty').hidden=!!saturday.days;
  const reviewCount=rows.filter(r=>reviewReason(r)).length;
  $('review-note').textContent=reviewCount?`${reviewCount} ${reviewCount===1?'día para revisar':'días para revisar'}. Se señalan fichajes sin salida y descuentos de 2 horas o más; pueden ser correctos. El saldo conserva las reglas habituales.`:'El detalle usa el primer y último fichaje de cada día.';
- $('export-csv').disabled=!has;
+ $('export-csv').disabled=!has;$('export-excel').disabled=!has;
  $('clear-data').title='Vacía la lectura de esta pestaña y pausa la sincronización. No borra ni modifica fichajes en Lenox.';
 }
-function shiftMonth(delta){const [y,m]=$('from').value.split('-').map(Number),d=new Date(y,m-1+delta,1);if(d.getFullYear()<1||d.getFullYear()>9999)return;const value=localDate(d).slice(0,7);setMonth(value);setFilter('all');compute();renderMonths()}
+function shiftMonth(delta){const value=neighboringMonth($('from').value,delta,data);if(!value)return;setMonth(value);setFilter('all');compute();renderMonths()}
 $('previous-month').addEventListener('click',()=>shiftMonth(-1));$('next-month').addEventListener('click',()=>shiftMonth(1));
-$('export-csv').addEventListener('click',()=>{
- const quote=v=>'"'+String(v).replaceAll('"','""')+'"';
- const table=[['Fecha','Primer fichaje','Último fichaje','Extras','Tardanza','Salida anticipada','Saldo','Horas sábado','Estado'],...rows.map(r=>[dateLabel(r.date),r.first,r.last||'',plain(r.before+r.after),plain(r.late),plain(r.early),(r.before+r.after-r.late-r.early<0?'−':'+')+plain(r.before+r.after-r.late-r.early),r.saturday?plain(r.saturdayMinutes):'',r.pending?'Provisional':reviewReason(r)?'Revisar':'Completo'])];
- const url=URL.createObjectURL(new Blob(['\uFEFF'+table.map(r=>r.map(quote).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
- const a=document.createElement('a');a.href=url;a.download=`demas-${$('from').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-});
+function downloadExport(content,type,extension){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=`demas-${$('from').value}.${extension}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
+$('export-csv').addEventListener('click',()=>downloadExport(makeCsv(rows),'text/csv;charset=utf-8','csv'));
+$('export-excel').addEventListener('click',()=>downloadExport(makeXlsx(rows),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx'));
+function showChartTooltip(event){const day=event.target.closest('.day');if(!day)return;const tooltip=$('chart-tooltip');tooltip.textContent=day.dataset.tooltip;tooltip.hidden=false;const box=day.getBoundingClientRect();tooltip.style.left=Math.max(12,Math.min(box.left+box.width/2-150,innerWidth-312))+'px';tooltip.style.top=Math.max(12,box.top-64)+'px'}
+$('chart').addEventListener('pointerover',showChartTooltip);$('chart').addEventListener('focusin',showChartTooltip);
+$('chart').addEventListener('pointerleave',()=>{$('chart-tooltip').hidden=true});$('chart').addEventListener('focusout',()=>{$('chart-tooltip').hidden=true});
+window.addEventListener('scroll',()=>{$('chart-tooltip').hidden=true},{passive:true});
 function restoreSession(){
  currentMonth();
  try{const raw=sessionStorage.getItem(RESUME_KEY);if(!raw)return;sessionStorage.removeItem(RESUME_KEY);const saved=JSON.parse(raw);if(!saved||Date.now()-saved.savedAt>30*60*1000||!Array.isArray(saved.data))return;
