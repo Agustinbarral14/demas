@@ -1,4 +1,4 @@
-export const APP_VERSION='0.4.2';
+export const APP_VERSION='0.4.3';
 export const MIN_CONNECTOR='0.3.2';
 export function compareVersions(a,b){
  const parse=v=>typeof v==='string'&&/^\d+(\.\d+){0,3}$/.test(v)?v.split('.').map(Number):null;
@@ -11,3 +11,4 @@ export function reviewReason(row){
  if(row.late>=120||row.early>=120)return 'Hay un descuento de al menos 2 horas. Puede ser correcto o faltar un registro; revisalo en Lenox.';
  return '';
 }
+

@@ -1,8 +1,9 @@
-import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.2';
-import {makeXlsx} from './export.mjs?v=0.4.2';
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.2';
+import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE} from './salary.mjs?v=0.4.3';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.3';
+import {makeXlsx} from './export.mjs?v=0.4.3';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.3';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.2';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.3';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
 const duration=(n,sign='')=>`${n>0?sign:''}${Math.floor(Math.abs(n)/60)}<span class="unit"> h </span>${String(Math.abs(n)%60).padStart(2,'0')}<span class="unit"> min</span>`;const plain=n=>`${Math.floor(Math.abs(n)/60)} h ${String(Math.abs(n)%60).padStart(2,'0')} min`;const count=n=>`${n} ${n===1?'vez':'veces'}`;
@@ -39,7 +40,7 @@ function render(){const from=$('from').value,to=$('to').value,has=rows.length>0,
  const text=!r.hasMarks?`${dateLabel(r.date)} · Sin fichajes. No se calcularon minutos extras.`:`${dateLabel(r.date)} · ${extra} minutos extras${r.saturday?' de sábado, por separado':''} · ${r.late} minutos tarde · ${r.early} minutos de salida anticipada${r.pending?' · Provisional':''}`;
  return `<div class="day${r.hasMarks?'':' no-marks'}" tabindex="0" title="${text}" aria-label="${text}" data-tooltip="${text}"><div class="positive"><div class="bar" style="height:${extra/scale*84}px;${r.saturday?'background:#8971ca':''}"></div></div><div class="negative"><div class="bar" style="height:${(r.late+r.early)/scale*84}px;background:${r.late?'#c83d54':'#db7b31'}"></div></div><div class="day-label">${Number(r.date.slice(8))}</div></div>`}).join('');
  document.querySelectorAll('.negative').forEach(el=>el.style.height=`${Math.max(20,...chartRows.map(r=>(r.late+r.early)/scale*84))}px`);
- $('chart-foot').classList.toggle('hidden',!has);$('clear-data').classList.toggle('hidden',!data.length);renderTable();renderEnhancements();
+ $('chart-foot').classList.toggle('hidden',!has);$('clear-data').classList.toggle('hidden',!data.length);renderTable();renderEnhancements();renderSalary();
 }
 function renderTable(){const visible=rows.filter(r=>active==='all'||r[active]>0);const columns=active==='all'?['Fecha','Primer fichaje','Último fichaje','Extras','Tarde','Salida anticipada']:active==='late'?['Fecha','Hora de llegada','Horario esperado','Tiempo tarde']:['Fecha','Último fichaje','Horario esperado','Tiempo anticipado'];$('thead').innerHTML=`<tr>${columns.map(c=>`<th scope="col">${c}</th>`).join('')}</tr>`;
  $('tbody').innerHTML=visible.map(r=>{const date=dateLabel(r.date)+reviewMarkup(r);const cells=active==='all'?[date,r.first,r.last||'Pendiente',r.saturday?'<span class="caption">Sábado · por separado</span>':`<span class="green">+${plain(r.before+r.after)}</span>`,r.late?`<span class="event late">−${plain(r.late)}</span>`:'—',r.pending?'<span class="caption">En revisión</span>':r.early?`<span class="event">−${plain(r.early)}</span>`:'—']:active==='late'?[date,r.first,$('start').value,`<span class="event late">−${plain(r.late)}</span>`]:[date,r.last,$('end').value,`<span class="event">−${plain(r.early)}</span>`];return `<tr>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`}).join('');$('table').classList.toggle('hidden',!visible.length);$('empty').classList.toggle('hidden',!!visible.length);$('empty').innerHTML=!rows.length?'<strong>Sin marcaciones disponibles</strong><p>Conectá Lenox para consultar este mes.</p>':active==='late'?'<strong>No hubo llegadas tarde</strong><p>Los primeros fichajes están dentro del horario de referencia.</p>':'<strong>No hay salidas anticipadas confirmadas</strong><p>Hoy y los días sin último fichaje siguen pendientes.</p>';
@@ -68,13 +69,46 @@ setInterval(automaticSync,60000);
 document.addEventListener('visibilitychange',automaticSync);
 $('timezone-note').textContent=`Fechas y horarios según tu navegador: ${Intl.DateTimeFormat().resolvedOptions().timeZone}. No se interpretan como horas extras aprobadas por tu empleador.`;
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'set_month',title:'Seleccionar mes',description:'Selecciona un mes y año. No sincroniza Lenox ni transmite datos.',inputSchema:{type:'object',properties:{month:{type:'string'}},required:['month'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!input||!validMonth(input.month))throw Error('Mes inválido');setMonth(input.month);compute();return{days:rows.length,...totals}}})).catch(()=>{})}catch{}}
-restoreSession();
+setupSalary();restoreSession();
 function renderTheme(){const dark=document.documentElement.dataset.theme==='dark',button=$('theme-toggle'),label=dark?'Cambiar a modo claro':'Cambiar a modo oscuro';button.setAttribute('aria-pressed',String(dark));button.setAttribute('aria-label',label);button.title=label;button.innerHTML=dark?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.4 14.3A8.5 8.5 0 0 1 9.7 3.6 8.5 8.5 0 1 0 20.4 14.3Z"/></svg>'}
 $('theme-toggle').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('demas-theme',theme)}catch{}renderTheme()});renderTheme();
 $('details').querySelector('summary').addEventListener('click',()=>{if(!$('details').open)setFilter('all')});
 callBridge('HELLO',{},2500).then(hello=>{bridge=true;connectorVersion=hello.version;updateConnectorNotice();sync()}).catch(()=>{if(data.length)status('Lectura conservada. El conector no respondió; abrí Mi conexión para volver a sincronizar.')});
 
 function reviewMarkup(row){const reason=reviewReason(row);return reason?`<details class="review-detail"><summary>Revisá este día</summary><p>${reason}</p><p>Primer fichaje: ${row.first}<br>Último fichaje: ${row.last||'No disponible'}</p><p>El conector entrega el primer y último fichaje, no los registros intermedios. Este aviso no cambia el cálculo.</p></details>`:''}
+function setupSalary(){
+ $('salary-category').replaceChildren(new Option('Elegí tu categoría',''),...Array.from({length:10},(_,i)=>new Option('Categoría '+(i+1),String(i+1))));
+ $('salary-hire').max=localDate();
+ try{const saved=JSON.parse(localStorage.getItem('demas-salary-settings')||'null');if(saved){$('salary-category').value=String(saved.category||'');$('salary-hire').value=saved.hireDate||''}}catch{}
+ for(const id of ['salary-category','salary-hire'])$(id).addEventListener('change',()=>{try{localStorage.setItem('demas-salary-settings',JSON.stringify({category:$('salary-category').value,hireDate:$('salary-hire').value}))}catch{}renderSalary()});
+ $('salary-open').addEventListener('click',()=>{$('salary-panel').showModal()});
+ $('salary-source').href=WAGE_SOURCE;$('salary-table').href=WAGE_IMAGE;
+ fetch(new URL('./fgb-status.json?t='+Date.now(),location.href),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(info=>{
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(info.checkedAt))return;
+ $('salary-source-check').textContent=info.needsVerification?'FGB publicó cambios: la escala cargada necesita revisión. Última comprobación: '+dateLabel(info.checkedAt)+'.':'Fuente FGB comprobada el '+dateLabel(info.checkedAt)+'. Se revisan nuevas publicaciones una vez al día.';
+ if(info.needsVerification)$('salary-source-check').classList.add('red');
+ }).catch(()=>{$('salary-source-check').textContent='No se pudo comprobar si FGB publicó una escala nueva. Revisá Nuevas paritarias.'});
+}
+function renderSalary(){
+ const category=Number($('salary-category').value),hireDate=$('salary-hire').value;
+ $('salary-result').hidden=true;
+ if(!category||!hireDate){$('salary-status').textContent='Elegí tu categoría y fecha de ingreso para calcular.';return}
+ try{
+ const lateCount=rows.filter(r=>!r.saturday&&r.late>0).length,earlyCount=rows.filter(r=>!r.saturday&&r.early>0).length;
+ const r=salaryEstimate({month:$('from').value,category,hireDate,netMinutes:totals.net||0,saturdayMinutes:saturday.minutes||0,lateCount,earlyCount,hasAttendance:source==='lenox'&&rows.length>0});
+ const money=n=>n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
+ $('salary-result').hidden=false;$('salary-total').textContent=money(r.total);$('salary-total-label').textContent=r.hasAttendance?'Sueldo bruto estimado':'Subtotal sin asistencia';
+ $('salary-month').textContent=monthLabel(r.month);$('salary-scale').textContent=(r.carried?'Última escala verificada: ':'Escala: ')+monthLabel(r.scaleMonth)+' · 184 hs';
+ $('salary-rate').textContent=money(r.rate)+' / h';
+ const entries=[['Sueldo base',`9 h × ${r.days} días de lunes a viernes`,r.base],['Presentismo · 25%',!r.hasAttendance?'Falta leer las marcaciones':`${lateCount} llegadas tarde · ${earlyCount} salidas anticipadas${!r.eligible?' · No corresponde':r.provisional?' · Provisional':' · Corresponde'}`,r.presentism],[r.extra<0?'Descuento de saldo':'Saldo de horas extra',r.hasAttendance?`${totals.net<0?'−':''}${plain(totals.net||0)} × hora${totals.net>0?' × 1,5':''}`:'Falta leer las marcaciones',r.extra],['Horas extra de sábados',r.hasAttendance?`${plain(saturday.minutes||0)} × hora × 2`:'Falta leer las marcaciones',r.saturdays],['Antigüedad',`${r.years} años completos × ${money(r.seniorityRate)}`,r.seniority]];
+ $('salary-breakdown').replaceChildren(...entries.map(([label,note,value])=>{const div=document.createElement('div');div.className='salary-line';const description=document.createElement('span'),b=document.createElement('b'),small=document.createElement('small'),amount=document.createElement('strong');b.textContent=label;small.textContent=note;amount.textContent=money(value);if(value<0)amount.className='red';description.append(b,small);div.append(description,amount);return div}));
+ const notes=[];if(!r.hasAttendance)notes.push('Sin marcaciones: presentismo y extras no están incluidos.');else if(r.provisional)notes.push('Mes en curso: base del mes completo y fichajes leídos hasta ahora; presentismo provisional.');
+ if(rows.some(x=>x.pending||reviewReason(x)))notes.push('Hay fichajes en curso o para revisar; pueden cambiar el importe.');
+ if(r.carried)notes.push('Se mantiene la última escala cargada. Una nueva publicación de FGB debe verificarse antes de usar sus importes.');
+ notes.push('Antigüedad al '+dateLabel(r.reference)+'. Estimación según tus reglas, sin aportes, retenciones ni otros conceptos.');
+ $('salary-status').textContent=notes.join(' ');
+ }catch(e){$('salary-status').textContent=e.message}
+}
 function renderEnhancements(){
  const has=rows.length>0;
  $('net-formula').textContent=has?`${plain(totals.extra)} extra − ${plain(totals.late)} tarde − ${plain(totals.early)} salida anticipada = ${totals.net<0?'−':totals.net>0?'+':''}${plain(totals.net)}`:'';
@@ -123,7 +157,8 @@ $('update-later').addEventListener('click',()=>{dismissedVersion=releaseInfo?.ve
 $('update-now').addEventListener('click',()=>{
  $('update-error').hidden=true;if(busy){$('update-error').textContent='Esperá a que termine la lectura de Lenox y volvé a pulsar Actualizar ahora.';$('update-error').hidden=false;return}
  try{sessionStorage.setItem(RESUME_KEY,JSON.stringify({savedAt:Date.now(),data,month:$('from').value,start:$('start').value,end:$('end').value,active,detailsOpen:$('details').open,loadedAt:loadedAt?.toISOString()}))}
- catch{$('update-error').textContent='No se pudo conservar la lectura. La página no se recargó. Exportá el CSV antes de volver a abrir DeMás.';$('update-error').hidden=false;return}
+ catch{$('update-error').textContent='No se pudo conservar la lectura. La página no se recargó. Exportá el Excel antes de volver a abrir DeMás.';$('update-error').hidden=false;return}
  location.reload();
 });
 setInterval(checkRelease,5*60*1000);document.addEventListener('visibilitychange',checkRelease);checkRelease();
+
