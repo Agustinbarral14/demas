@@ -11,7 +11,8 @@
  async function setDate(prefix,value){
   const el=input(prefix);if(!el)throw Error('No se encontró el filtro de fechas de Lenox.');if(el.value===value)return;
   const [day,month,year]=value.split('-').map(Number);el.focus();el.click();
-  const panel=await waitFor(()=>{const current=input(prefix);if(!current)return null;const p=document.getElementById(current.getAttribute('aria-controls'));if(current.getAttribute('aria-expanded')!=='true'){current.focus();current.click();return null}return p&&p.getAttribute('aria-hidden')==='false'&&visible(p)&&p.querySelector('.el-date-picker__header-label')?p:null});
+  const panel=await waitFor(()=>{const current=input(prefix);if(!current)return null;const p=document.getElementById(current.getAttribute('aria-controls'));return current.getAttribute('aria-expanded')==='true'&&p&&p.getAttribute('aria-hidden')!=='true'&&visible(p)&&p.querySelector('.el-date-picker__header-label')?p:null});
+  await pause(400);
   for(let steps=0;steps<250;steps++){
    const labels=[...panel.querySelectorAll('.el-date-picker__header-label')].map(e=>e.textContent.trim().toLowerCase());
    const shownYear=Number(labels[0]),shownMonth=months[labels[1]];
@@ -29,6 +30,7 @@
  async function read(from,to){
   if(!/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(from)||!/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(to)||from>to)throw Error('Período inválido.');
   await waitFor(()=>{if([...document.querySelectorAll('input[type="password"]')].some(visible))throw Error('Iniciá sesión directamente en la pestaña de Lenox y volvé a sincronizar.');return portalReady()});if(!input('fecha-desde')){const button=document.getElementById('btnSideBarOptionmarcaciones');if(!button)throw Error('Iniciá sesión con tu cuenta de Lenox.');button.click();await waitFor(()=>input('fecha-desde'));await settle();}
+  await settle();
   const now=new Date(),today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const [year,month]=to.split('-').map(Number);const date=new Date(0);date.setFullYear(year,month,0);const until=`${to}-${String(date.getDate()).padStart(2,'0')}`;const since=from+'-01',end=until>today?today:until;if(since>end)return{records:[],markCount:0,from,to,readAt:new Date().toISOString()};
   const oldFrom=input('fecha-desde').value.split('-').reverse().join('-');
