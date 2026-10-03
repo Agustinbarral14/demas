@@ -1,9 +1,9 @@
-import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE} from './salary.mjs?v=0.4.3';
-import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.3';
-import {makeXlsx} from './export.mjs?v=0.4.3';
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.3';
+import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE} from './salary.mjs?v=0.4.4';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.4';
+import {makeXlsx} from './export.mjs?v=0.4.4';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.4';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.3';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.4';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
 const duration=(n,sign='')=>`${n>0?sign:''}${Math.floor(Math.abs(n)/60)}<span class="unit"> h </span>${String(Math.abs(n)%60).padStart(2,'0')}<span class="unit"> min</span>`;const plain=n=>`${Math.floor(Math.abs(n)/60)} h ${String(Math.abs(n)%60).padStart(2,'0')} min`;const count=n=>`${n} ${n===1?'vez':'veces'}`;
@@ -98,7 +98,7 @@ function renderSalary(){
  const r=salaryEstimate({month:$('from').value,category,hireDate,netMinutes:totals.net||0,saturdayMinutes:saturday.minutes||0,lateCount,earlyCount,hasAttendance:source==='lenox'&&rows.length>0});
  const money=n=>n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
  $('salary-result').hidden=false;$('salary-total').textContent=money(r.total);$('salary-total-label').textContent=r.hasAttendance?'Sueldo bruto estimado':'Subtotal sin asistencia';
- $('salary-month').textContent=monthLabel(r.month);$('salary-scale').textContent=(r.carried?'Última escala verificada: ':'Escala: ')+monthLabel(r.scaleMonth)+' · 184 hs';
+ $('salary-month').textContent=monthLabel(r.month);$('salary-scale').textContent=(r.carried?'Última escala verificada: ':'Escala: ')+monthLabel(r.scaleMonth);
  $('salary-rate').textContent=money(r.rate)+' / h';
  const entries=[['Sueldo base',`9 h × ${r.days} días de lunes a viernes`,r.base],['Presentismo · 25%',!r.hasAttendance?'Falta leer las marcaciones':`${lateCount} llegadas tarde · ${earlyCount} salidas anticipadas${!r.eligible?' · No corresponde':r.provisional?' · Provisional':' · Corresponde'}`,r.presentism],[r.extra<0?'Descuento de saldo':'Saldo de horas extra',r.hasAttendance?`${totals.net<0?'−':''}${plain(totals.net||0)} × hora${totals.net>0?' × 1,5':''}`:'Falta leer las marcaciones',r.extra],['Horas extra de sábados',r.hasAttendance?`${plain(saturday.minutes||0)} × hora × 2`:'Falta leer las marcaciones',r.saturdays],['Antigüedad',`${r.years} años completos × ${money(r.seniorityRate)}`,r.seniority]];
  $('salary-breakdown').replaceChildren(...entries.map(([label,note,value])=>{const div=document.createElement('div');div.className='salary-line';const description=document.createElement('span'),b=document.createElement('b'),small=document.createElement('small'),amount=document.createElement('strong');b.textContent=label;small.textContent=note;amount.textContent=money(value);if(value<0)amount.className='red';description.append(b,small);div.append(description,amount);return div}));
