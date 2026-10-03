@@ -1,10 +1,12 @@
-import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE} from './salary.mjs?v=0.4.4';
-import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.4';
-import {makeXlsx} from './export.mjs?v=0.4.4';
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.4';
+import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE,SCALES} from './salary.mjs?v=0.4.5';
+import {readWagePhoto} from './wage-photo.mjs?v=0.4.5';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.5';
+import {makeXlsx} from './export.mjs?v=0.4.5';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.5';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.4';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.5';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
+let wageScales=SCALES,photoScales=[],wageCandidate=null,lastWageCheck=0;
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
 const duration=(n,sign='')=>`${n>0?sign:''}${Math.floor(Math.abs(n)/60)}<span class="unit"> h </span>${String(Math.abs(n)%60).padStart(2,'0')}<span class="unit"> min</span>`;const plain=n=>`${Math.floor(Math.abs(n)/60)} h ${String(Math.abs(n)%60).padStart(2,'0')} min`;const count=n=>`${n} ${n===1?'vez':'veces'}`;
 function status(text){$('data-status').textContent=text}
@@ -78,16 +80,39 @@ callBridge('HELLO',{},2500).then(hello=>{bridge=true;connectorVersion=hello.vers
 function reviewMarkup(row){const reason=reviewReason(row);return reason?`<details class="review-detail"><summary>Revisá este día</summary><p>${reason}</p><p>Primer fichaje: ${row.first}<br>Último fichaje: ${row.last||'No disponible'}</p><p>El conector entrega el primer y último fichaje, no los registros intermedios. Este aviso no cambia el cálculo.</p></details>`:''}
 function setupSalary(){
  $('salary-category').replaceChildren(new Option('Elegí tu categoría',''),...Array.from({length:10},(_,i)=>new Option('Categoría '+(i+1),String(i+1))));
- $('salary-hire').max=localDate();
- try{const saved=JSON.parse(localStorage.getItem('demas-salary-settings')||'null');if(saved){$('salary-category').value=String(saved.category||'');$('salary-hire').value=saved.hireDate||''}}catch{}
+ $('salary-hire').max=localDate().slice(0,7);
+ try{const saved=JSON.parse(localStorage.getItem('demas-salary-settings')||'null');if(saved){$('salary-category').value=String(saved.category||'');$('salary-hire').value=(saved.hireDate||'').slice(0,7)}}catch{}
  for(const id of ['salary-category','salary-hire'])$(id).addEventListener('change',()=>{try{localStorage.setItem('demas-salary-settings',JSON.stringify({category:$('salary-category').value,hireDate:$('salary-hire').value}))}catch{}renderSalary()});
  $('salary-open').addEventListener('click',()=>{$('salary-panel').showModal()});
  $('salary-source').href=WAGE_SOURCE;$('salary-table').href=WAGE_IMAGE;
- fetch(new URL('./fgb-status.json?t='+Date.now(),location.href),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(info=>{
- if(!/^\d{4}-\d{2}-\d{2}$/.test(info.checkedAt))return;
- $('salary-source-check').textContent=info.needsVerification?'FGB publicó cambios: la escala cargada necesita revisión. Última comprobación: '+dateLabel(info.checkedAt)+'.':'Fuente FGB comprobada el '+dateLabel(info.checkedAt)+'. Se revisan nuevas publicaciones una vez al día.';
- if(info.needsVerification)$('salary-source-check').classList.add('red');
- }).catch(()=>{$('salary-source-check').textContent='No se pudo comprobar si FGB publicó una escala nueva. Revisá Nuevas paritarias.'});
+ try{const saved=JSON.parse(localStorage.getItem('demas-wage-photo')||'[]');photoScales=checkedScales(saved);wageScales=mergeWages(SCALES,photoScales)}catch{}
+ $('wage-photo').addEventListener('change',readPhoto);
+ document.addEventListener('paste',event=>{if(!$('salary-panel').open||$('wage-photo').disabled)return;const item=[...(event.clipboardData?.items||[])].find(item=>item.type.startsWith('image/'));const file=item?.getAsFile();if(!file)return;event.preventDefault();$('wage-photo-details').open=true;readPhoto(file)});
+ $('wage-apply').addEventListener('click',()=>{if(!wageCandidate)return;photoScales=mergeWages(photoScales,wageCandidate);wageScales=mergeWages(wageScales,wageCandidate);try{localStorage.setItem('demas-wage-photo',JSON.stringify(photoScales))}catch{}$('wage-photo-preview').hidden=true;$('wage-photo-status').textContent='Tabla aplicada solo en este navegador.';wageCandidate=null;renderSalary()});
+ checkWages();setInterval(checkWages,60*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkWages()});
+}
+function mergeWages(first,last){return [...new Map([...first,...last].map(s=>[s.month,s])).values()].sort((a,b)=>a.month.localeCompare(b.month))}
+function checkedScales(scales){if(!Array.isArray(scales)||scales.length>240)throw Error('Escalas inválidas');for(const s of scales){if(!validMonth(s.month)||!Array.isArray(s.hourly)||s.hourly.length!==11||!Number.isFinite(s.seniority)||s.seniority<=0||s.seniority>10000000)throw Error('Tabla inválida');for(let i=1;i<=10;i++)if(!Number.isFinite(s.hourly[i])||s.hourly[i]<=0||s.hourly[i]>10000000||(i>1&&s.hourly[i]<=s.hourly[i-1]))throw Error('Categorías inválidas')}return scales}
+async function checkWages(){
+ if(document.hidden||Date.now()-lastWageCheck<60000)return;lastWageCheck=Date.now();
+ let downloaded=false;
+ try{const response=await fetch(new URL('./wages.json?t='+Date.now(),location.href),{cache:'no-store'});if(!response.ok)throw Error();const info=await response.json();wageScales=mergeWages(mergeWages(SCALES,photoScales),checkedScales(info.scales));renderSalary();downloaded=true}catch{}
+ if(!downloaded){$('salary-source-check').textContent='No se pudo actualizar la tabla salarial. Podés adjuntar o pegar una foto.';return}
+ try{const response=await fetch(new URL('./fgb-status.json?t='+Date.now(),location.href),{cache:'no-store'});if(!response.ok)throw Error();const info=await response.json();if(!/^\d{4}-\d{2}-\d{2}$/.test(info.checkedAt))throw Error();
+ const stale=Date.now()-new Date(info.checkedAt+'T00:00:00Z').getTime()>3*24*60*60*1000;
+ $('salary-source-check').textContent=info.needsVerification?'No se pudo leer la nueva tabla de FGB. Adjuntá una foto de las paritarias para revisarla.':stale?'La última comprobación de FGB es del '+dateLabel(info.checkedAt)+'. Podés adjuntar una tabla más nueva.':'Tablas FGB comprobadas el '+dateLabel(info.checkedAt)+'. Lectura automática una vez al día.';
+ $('salary-source-check').classList.toggle('red',!!info.needsVerification||stale);
+ if(info.needsVerification)$('wage-photo-details').open=true;
+ }catch{$('salary-source-check').textContent='No se pudo comprobar la fuente FGB. Podés adjuntar una foto de las paritarias.'}
+}
+async function readPhoto(pasted){
+ const file=pasted instanceof File?pasted:$('wage-photo').files[0];if(!file)return;$('wage-photo-preview').hidden=true;wageCandidate=null;$('wage-photo').disabled=true;
+ try{const detected=checkedScales(await readWagePhoto(file,text=>$('wage-photo-status').textContent=text));wageCandidate=detected.map(s=>({...s,source:WAGE_SOURCE,image:WAGE_IMAGE,method:'photo'}));
+ const money=n=>n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+ $('wage-photo-values').replaceChildren(...wageCandidate.map(s=>{const box=document.createElement('div'),title=document.createElement('h3'),table=document.createElement('table');title.textContent=monthLabel(s.month);const head=document.createElement('thead');head.innerHTML='<tr><th>Categoría</th><th>Valor por hora</th></tr>';const body=document.createElement('tbody');for(let i=1;i<=10;i++){const tr=document.createElement('tr');for(const val of [String(i),'$ '+money(s.hourly[i])]){const td=document.createElement('td');td.textContent=val;tr.append(td)}body.append(tr)}table.append(head,body);const note=document.createElement('p');note.textContent='Antigüedad por año: $ '+money(s.seniority);box.append(title,table,note);return box}));
+ $('wage-photo-preview').hidden=false;$('wage-photo-status').textContent='Revisá que los valores y meses coincidan con tu foto antes de aplicarlos.';
+ }catch(e){console.warn('Lectura de paritarias:',e.message);$('wage-photo-status').textContent='No se pudo leer con certeza. Probá con el cuadro completo y nítido; verificá también tu conexión para cargar el lector.'}
+ finally{$('wage-photo').disabled=false;$('wage-photo').value=''}
 }
 function renderSalary(){
  const category=Number($('salary-category').value),hireDate=$('salary-hire').value;
@@ -95,16 +120,17 @@ function renderSalary(){
  if(!category||!hireDate){$('salary-status').textContent='Elegí tu categoría y fecha de ingreso para calcular.';return}
  try{
  const lateCount=rows.filter(r=>!r.saturday&&r.late>0).length,earlyCount=rows.filter(r=>!r.saturday&&r.early>0).length;
- const r=salaryEstimate({month:$('from').value,category,hireDate,netMinutes:totals.net||0,saturdayMinutes:saturday.minutes||0,lateCount,earlyCount,hasAttendance:source==='lenox'&&rows.length>0});
+ const r=salaryEstimate({month:$('from').value,category,hireDate:hireDate+'-01',netMinutes:totals.net||0,saturdayMinutes:saturday.minutes||0,lateCount,earlyCount,hasAttendance:source==='lenox'&&rows.length>0,scales:wageScales});
  const money=n=>n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
  $('salary-result').hidden=false;$('salary-total').textContent=money(r.total);$('salary-total-label').textContent=r.hasAttendance?'Sueldo bruto estimado':'Subtotal sin asistencia';
- $('salary-month').textContent=monthLabel(r.month);$('salary-scale').textContent=(r.carried?'Última escala verificada: ':'Escala: ')+monthLabel(r.scaleMonth);
+ $('salary-month').textContent=monthLabel(r.month);$('salary-scale').textContent=(r.carried?'Última escala disponible: ':'Escala: ')+monthLabel(r.scaleMonth)+(r.method==='photo'?' · Foto revisada por vos':'');
+ for(const[id,url]of [['salary-source',r.source],['salary-table',r.image]]){$(id).hidden=r.method==='photo';try{const parsed=new URL(url);if(parsed.protocol==='https:'&&parsed.hostname==='fgb.org.ar')$(id).href=parsed.href}catch{}}
  $('salary-rate').textContent=money(r.rate)+' / h';
  const entries=[['Sueldo base',`9 h × ${r.days} días de lunes a viernes`,r.base],['Presentismo · 25%',!r.hasAttendance?'Falta leer las marcaciones':`${lateCount} llegadas tarde · ${earlyCount} salidas anticipadas${!r.eligible?' · No corresponde':r.provisional?' · Provisional':' · Corresponde'}`,r.presentism],[r.extra<0?'Descuento de saldo':'Saldo de horas extra',r.hasAttendance?`${totals.net<0?'−':''}${plain(totals.net||0)} × hora${totals.net>0?' × 1,5':''}`:'Falta leer las marcaciones',r.extra],['Horas extra de sábados',r.hasAttendance?`${plain(saturday.minutes||0)} × hora × 2`:'Falta leer las marcaciones',r.saturdays],['Antigüedad',`${r.years} años completos × ${money(r.seniorityRate)}`,r.seniority]];
  $('salary-breakdown').replaceChildren(...entries.map(([label,note,value])=>{const div=document.createElement('div');div.className='salary-line';const description=document.createElement('span'),b=document.createElement('b'),small=document.createElement('small'),amount=document.createElement('strong');b.textContent=label;small.textContent=note;amount.textContent=money(value);if(value<0)amount.className='red';description.append(b,small);div.append(description,amount);return div}));
  const notes=[];if(!r.hasAttendance)notes.push('Sin marcaciones: presentismo y extras no están incluidos.');else if(r.provisional)notes.push('Mes en curso: base del mes completo y fichajes leídos hasta ahora; presentismo provisional.');
  if(rows.some(x=>x.pending||reviewReason(x)))notes.push('Hay fichajes en curso o para revisar; pueden cambiar el importe.');
- if(r.carried)notes.push('Se mantiene la última escala cargada. Una nueva publicación de FGB debe verificarse antes de usar sus importes.');
+ if(r.carried)notes.push('Se mantiene la última escala disponible hasta que se lea una nueva tabla de FGB.');
  notes.push('Antigüedad al '+dateLabel(r.reference)+'. Estimación según tus reglas, sin aportes, retenciones ni otros conceptos.');
  $('salary-status').textContent=notes.join(' ');
  }catch(e){$('salary-status').textContent=e.message}

@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {parseScale} from '../docs/wage-parser.mjs';
+import {SCALES} from '../docs/salary.mjs';
+const headers=fs.readFileSync(new URL('./fixtures/headers.tsv',import.meta.url),'utf8');
+const values=fs.readFileSync(new URL('./fixtures/values.tsv',import.meta.url),'utf8');
+assert.deepEqual(parseScale(headers,values),SCALES);
+const future=parseScale(headers.replaceAll('\t2026','\t2027'),values);
+assert.deepEqual(future.map(s=>s.month),['2027-07','2027-08','2027-09']);
+assert.throws(()=>parseScale(headers.replaceAll('184Hs.','175Hs.'),values));
+assert.throws(()=>parseScale(headers,values.replace('11.073,94','91.073,94')));
+assert.throws(()=>parseScale(headers,values.replaceAll('Antigiiedad:','OtroConcepto:')));
+console.log('Wage reader checks passed: exact official values, future years, missing header, corrupted amount and missing seniority.');

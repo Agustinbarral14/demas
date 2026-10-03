@@ -1,0 +1,1 @@
+{"name":"demas-wage-reader","private":true,"type":"module","dependencies":{"sharp":"0.34.3","tesseract.js":"6.0.1"}}

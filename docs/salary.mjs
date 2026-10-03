@@ -29,5 +29,5 @@ export function salaryEstimate({month,category,hireDate,netMinutes=0,saturdayMin
  const base=money(rate*9*days),eligible=hasAttendance&&lateCount<=4&&earlyCount<=3,presentism=eligible?money(base*.25):0;
  const extra=hasAttendance?money(netMinutes/60*rate*(netMinutes>0?1.5:1)):0;
  const saturdays=hasAttendance?money(saturdayMinutes/60*rate*2):0,seniority=money(scale.seniority*years);
- return {month,scaleMonth:scale.month,carried:scale.month!==month,rate,days,years,reference,base,eligible,presentism,extra,saturdays,seniority,seniorityRate:scale.seniority,total:money(base+presentism+extra+saturdays+seniority),hasAttendance,provisional:month>=today.slice(0,7)};
+ return {month,scaleMonth:scale.month,source:scale.source||WAGE_SOURCE,image:scale.image||WAGE_IMAGE,method:scale.method||'verified',carried:scale.month!==month,rate,days,years,reference,base,eligible,presentism,extra,saturdays,seniority,seniorityRate:scale.seniority,total:money(base+presentism+extra+saturdays+seniority),hasAttendance,provisional:month>=today.slice(0,7)};
 }

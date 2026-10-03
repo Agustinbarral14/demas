@@ -1,0 +1,66 @@
+{
+  "checkedAt": "2026-10-03",
+  "imageHash": "ffd1b16d40e36d1b79fc39380687778a858807fcd3c7025a0c28172aa7505f72",
+  "scales": [
+    {
+      "month": "2026-07",
+      "hourly": [
+        null,
+        6183.12,
+        6344.47,
+        6650.55,
+        7093.88,
+        7518.04,
+        8065.87,
+        8733.04,
+        9403.28,
+        10177.41,
+        11073.94
+      ],
+      "seniority": 14362.58,
+      "source": "https://fgb.org.ar/escala-julio-septiembre-2026/",
+      "image": "https://fgb.org.ar/wp-content/uploads/2026/07/ESCALA-JULIO-SEPTIEMBRE-26.png",
+      "method": "ocr-validated"
+    },
+    {
+      "month": "2026-08",
+      "hourly": [
+        null,
+        6300.6,
+        6465.02,
+        6776.91,
+        7228.67,
+        7660.88,
+        8219.12,
+        8898.97,
+        9581.94,
+        10370.78,
+        11284.35
+      ],
+      "seniority": 14635.47,
+      "source": "https://fgb.org.ar/escala-julio-septiembre-2026/",
+      "image": "https://fgb.org.ar/wp-content/uploads/2026/07/ESCALA-JULIO-SEPTIEMBRE-26.png",
+      "method": "ocr-validated"
+    },
+    {
+      "month": "2026-09",
+      "hourly": [
+        null,
+        6407.71,
+        6574.93,
+        6892.12,
+        7351.55,
+        7791.12,
+        8358.84,
+        9050.25,
+        9744.83,
+        10547.09,
+        11476.18
+      ],
+      "seniority": 14884.27,
+      "source": "https://fgb.org.ar/escala-julio-septiembre-2026/",
+      "image": "https://fgb.org.ar/wp-content/uploads/2026/07/ESCALA-JULIO-SEPTIEMBRE-26.png",
+      "method": "ocr-validated"
+    }
+  ]
+}

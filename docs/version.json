@@ -1,1 +1,1 @@
-{"version":"0.4.4","minimumConnectorVersion":"0.3.2","message":"Nuevo calculador de sueldo: categoría, antigüedad, presentismo, saldo y sábados con escala oficial FGB."}
+{"version":"0.4.5","minimumConnectorVersion":"0.3.2","message":"Sueldo en ventana privada y compacta, ingreso por mes y año, lectura automática de tablas FGB y opción de adjuntar o pegar paritarias."}
