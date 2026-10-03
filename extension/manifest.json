@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "DeMás · Conector Lenox",
+  "version": "0.2.0",
+  "description": "Lee tus marcaciones visibles en Lenox y las muestra en DeMás, sin pedir ni copiar tu contraseña.",
+  "permissions": [
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://cloud.lenoxhr.com/*",
+    "https://agustinbarral14.github.io/demas/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://agustinbarral14.github.io/demas/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "DeMás · Conectar Lenox",
+    "default_popup": "popup.html"
+  }
+}
