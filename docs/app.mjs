@@ -43,7 +43,7 @@ $('open-lenox').addEventListener('click',async()=>{try{await callBridge('OPEN',{
 $('sync-lenox').addEventListener('click',()=>sync(true,true));$('refresh').addEventListener('click',()=>sync(false,true));
 async function sync(fromDialog=false,full=false){
  if(busy)return;busy=true;$('refresh').disabled=true;status('Leyendo tu historial de Lenox…');if(fromDialog)$('extension-state').textContent='Leyendo tu historial…';
- try{const hello=await callBridge('HELLO',{},2500);if(hello.version!=='0.3.0')throw Error('Actualizá el conector a la versión 0.3.0 desde Mi conexión para leer el historial completo.');
+ try{const hello=await callBridge('HELLO',{},2500);if(hello.version!=='0.3.1')throw Error('Actualizá el conector a la versión 0.3.1 desde Mi conexión para leer el historial completo.');
  const history=full||!connected,current=localDate().slice(0,7);const result=await callBridge(history?'HISTORY':'SYNC',history?{}:{from:current,to:current});if(!Array.isArray(result.records))throw Error('El conector devolvió una respuesta inesperada.');
  const incoming=result.records.length?parseMarks(result.records.map(r=>r.date+';'+r.first+';'+(r.last||'')).join('\n')):[];data=history?incoming:[...data.filter(r=>r.date.slice(0,7)!==current),...incoming];
  source='lenox';connected=true;bridge=true;loadedAt=new Date();$('source-title').textContent='Tu sesión de Lenox';status('Actualizado '+loadedAt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+' · '+result.markCount+' fichajes');renderMonths();compute();if(fromDialog)$('connection-dialog').close();
@@ -59,4 +59,3 @@ function renderTheme(){const dark=document.documentElement.dataset.theme==='dark
 $('theme-toggle').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('demas-theme',theme)}catch{}renderTheme()});renderTheme();
 $('details').querySelector('summary').addEventListener('click',()=>{if(!$('details').open)setFilter('all')});
 callBridge('HELLO',{},2500).then(()=>{bridge=true;sync()}).catch(()=>{});
-

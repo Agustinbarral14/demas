@@ -1,4 +1,4 @@
-DeMás — Conector Chrome 0.3.0
+DeMás — Conector Chrome 0.3.1
 
 1. Extraé el ZIP.
 2. Abrí chrome://extensions en Chrome. Activá Modo de desarrollador.
