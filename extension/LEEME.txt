@@ -1,4 +1,4 @@
-DeMás — Conector Chrome 0.3.1
+DeMás — Conector Chrome 0.3.2
 
 1. Extraé el ZIP.
 2. Abrí chrome://extensions en Chrome. Activá Modo de desarrollador.
@@ -10,5 +10,5 @@ DeMás — Conector Chrome 0.3.1
 Si tenías una versión local del conector, quitá esa extensión y cargá esta carpeta nueva.
 
 Solo lee las marcaciones visibles y cambia los filtros de fecha en una pestaña dedicada de Lenox. No copia contraseñas, no lee cookies y no modifica fichajes. Los horarios quedan en la memoria de DeMás y no se envían a GitHub.
-Carga todo el historial al abrir DeMás y actualiza el mes actual cada 15 minutos de 07:00 a 09:00 y de 18:00 a 20:00 mientras esté visible. Abre Lenox en una pestaña de segundo plano; no hace falta activarla salvo para iniciar sesión. Es una versión beta: si Lenox cambia su interfaz o tarda en cargar, se informa el error y se conserva la última lectura. No está publicada en Chrome Web Store.
+Carga todo el historial al abrir DeMás y actualiza el mes actual cada 15 minutos de 07:00 a 09:00 y de 18:00 a 20:00 mientras esté visible. La lectura usa el calendario anterior y muestra Lenox mientras lee. Al terminar vuelve a DeMás si no cambiaste de pestaña. Es una versión beta: si Lenox cambia su interfaz o tarda en cargar, se informa el error y se conserva la última lectura. No está publicada en Chrome Web Store.
 

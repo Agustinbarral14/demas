@@ -19,4 +19,3 @@ export function calculate(records,from,to,start,end,now=new Date()){
 export function automaticSyncDue(now,lastAttempt=0){
  const hour=now.getHours();return ((hour>=7&&hour<9)||(hour>=18&&hour<20))&&now.getTime()-lastAttempt>=15*60*1000;
 }
-

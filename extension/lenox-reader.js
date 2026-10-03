@@ -10,17 +10,22 @@
  async function settle(){await waitFor(()=>!document.body.innerText.includes('Cargando marcaciones'),30000);await pause(500)}
  async function setDate(prefix,value){
   const el=input(prefix);if(!el)throw Error('No se encontró el filtro de fechas de Lenox.');if(el.value===value)return;
-  // Confirm the editable date as typing + Enter. Calendar popovers depend on
-  // animation frames, which Chrome pauses when Lenox is a background tab.
-  const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
-  setter.call(el,value);
-  el.dispatchEvent(new Event('input',{bubbles:true}));
-  el.dispatchEvent(new Event('change',{bubbles:true}));
-  el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',bubbles:true}));
-  el.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',code:'Enter',bubbles:true}));
-  el.blur();
-  await pause(1000);await settle();
-  await waitFor(()=>input(prefix)?.value===value);
+  const [day,month,year]=value.split('-').map(Number);el.focus();el.click();
+  const panel=await waitFor(()=>{const current=input(prefix);if(!current)return null;const p=document.getElementById(current.getAttribute('aria-controls'));return current.getAttribute('aria-expanded')==='true'&&p&&p.getAttribute('aria-hidden')!=='true'&&visible(p)&&p.querySelector('.el-date-picker__header-label')?p:null});
+  await pause(400);
+  for(let steps=0;steps<250;steps++){
+   const labels=[...panel.querySelectorAll('.el-date-picker__header-label')].map(e=>e.textContent.trim().toLowerCase());
+   const shownYear=Number(labels[0]),shownMonth=months[labels[1]];
+   if(!shownYear||!shownMonth)throw Error('No se pudo interpretar el calendario de Lenox.');
+   if(shownYear===year&&shownMonth===month){
+    const cell=[...panel.querySelectorAll('td.available')].find(e=>Number(e.textContent.trim())===day&&e.getAttribute('aria-disabled')!=='true');
+    if(!cell)throw Error('La fecha solicitada no está habilitada en Lenox.');cell.click();await pause(350);await settle();
+    if(input(prefix).value!==value)throw Error('Lenox no confirmó la fecha solicitada.');return;
+   }
+   const label=shownYear!==year?(shownYear>year?'Año Anterior':'Próximo Año'):(shownMonth>month?'Mes Anterior':'Próximo Mes');
+   const button=panel.querySelector(`button[aria-label="${label}"]`);if(!button)throw Error('No se encontró la navegación del calendario de Lenox.');button.click();await pause(30);
+  }
+  throw Error('El período está demasiado alejado para consultar el calendario en una sola lectura.');
  }
  async function read(from,to){
   if(!/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(from)||!/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(to)||from>to)throw Error('Período inválido.');
