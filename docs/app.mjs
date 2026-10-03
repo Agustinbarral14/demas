@@ -1,4 +1,4 @@
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate} from './core.mjs';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.3.1.1';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
 const duration=(n,sign='')=>`${n>0?sign:''}${Math.floor(Math.abs(n)/60)}<span class="unit"> h </span>${String(Math.abs(n)%60).padStart(2,'0')}<span class="unit"> min</span>`;const plain=n=>`${Math.floor(Math.abs(n)/60)} h ${String(Math.abs(n)%60).padStart(2,'0')} min`;const count=n=>`${n} ${n===1?'vez':'veces'}`;
@@ -50,8 +50,10 @@ async function sync(fromDialog=false,full=false){
  }catch(e){status('No se pudo actualizar: '+e.message+(loadedAt?' Se conserva la última lectura.':''));if(fromDialog)$('extension-state').textContent=e.message}
  finally{busy=false;$('refresh').disabled=false}
 }
-setInterval(()=>{if(!document.hidden&&connected)sync()},60000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&connected&&!busy)sync()});
+let lastAutomaticAttempt=0;
+function automaticSync(){const now=new Date();if(document.hidden||!connected||busy||!automaticSyncDue(now,Math.max(lastAutomaticAttempt,loadedAt?.getTime()||0)))return;lastAutomaticAttempt=now.getTime();sync()}
+setInterval(automaticSync,60000);
+document.addEventListener('visibilitychange',automaticSync);
 $('timezone-note').textContent=`Fechas y horarios según tu navegador: ${Intl.DateTimeFormat().resolvedOptions().timeZone}. No se interpretan como horas extras aprobadas por tu empleador.`;
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'set_month',title:'Seleccionar mes',description:'Selecciona un mes y año. No sincroniza Lenox ni transmite datos.',inputSchema:{type:'object',properties:{month:{type:'string'}},required:['month'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!input||!validMonth(input.month))throw Error('Mes inválido');setMonth(input.month);compute();return{days:rows.length,...totals}}})).catch(()=>{})}catch{}}
 currentMonth();
@@ -59,3 +61,4 @@ function renderTheme(){const dark=document.documentElement.dataset.theme==='dark
 $('theme-toggle').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('demas-theme',theme)}catch{}renderTheme()});renderTheme();
 $('details').querySelector('summary').addEventListener('click',()=>{if(!$('details').open)setFilter('all')});
 callBridge('HELLO',{},2500).then(()=>{bridge=true;sync()}).catch(()=>{});
+

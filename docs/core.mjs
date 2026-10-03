@@ -14,3 +14,6 @@ export function calculate(records,from,to,start,end,now=new Date()){
  const today=localDate(now),clock=now.getHours()*60+now.getMinutes();const rows=records.filter(r=>r.date.slice(0,7)>=from&&r.date.slice(0,7)<=to&&r.date<=today).map(r=>{const ongoing=r.date===today,incomplete=!r.last,first=minutes(r.first),last=incomplete?null:minutes(r.last);const pending=ongoing||incomplete;const futureClock=ongoing&&(first>clock||(last!==null&&last>clock));return {...r,ongoing,incomplete,pending:pending||futureClock,before:futureClock?0:Math.max(0,(ongoing?Math.min(start,clock):start)-first),after:futureClock||last===null?0:Math.max(0,last-end),late:futureClock?0:Math.max(0,first-start),early:pending||futureClock?0:Math.max(0,end-last)}});
  const totals=rows.reduce((a,r)=>{for(const k of ['before','after','late','early'])a[k]+=r[k];return a},{before:0,after:0,late:0,early:0});return {rows,totals:{...totals,extra:totals.before+totals.after,net:totals.before+totals.after-totals.late-totals.early}};
 }
+export function automaticSyncDue(now,lastAttempt=0){
+ const hour=now.getHours();return ((hour>=7&&hour<9)||(hour>=18&&hour<20))&&now.getTime()-lastAttempt>=15*60*1000;
+}
