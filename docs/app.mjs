@@ -1,10 +1,10 @@
-import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE,SCALES} from './salary.mjs?v=0.4.5';
-import {readWagePhoto} from './wage-photo.mjs?v=0.4.5';
-import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.5';
-import {makeXlsx} from './export.mjs?v=0.4.5';
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.5';
+import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE,SCALES} from './salary.mjs?v=0.4.6';
+import {readWagePhoto} from './wage-photo.mjs?v=0.4.6';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.6';
+import {makeXlsx} from './export.mjs?v=0.4.6';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.6';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.5';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.6';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 let wageScales=SCALES,photoScales=[],wageCandidate=null,lastWageCheck=0;
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
