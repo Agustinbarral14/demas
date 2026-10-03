@@ -1,8 +1,8 @@
-import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.1';
-import {makeCsv,makeXlsx} from './export.mjs?v=0.4.1';
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.1';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.4.2';
+import {makeXlsx} from './export.mjs?v=0.4.2';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.4.2';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.1';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.4.2';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 const monthLabel=v=>{const[y,m]=v.split('-');return `${monthNames[+m]} ${+y}`};const dateLabel=d=>d.split('-').reverse().join('/');
 const duration=(n,sign='')=>`${n>0?sign:''}${Math.floor(Math.abs(n)/60)}<span class="unit"> h </span>${String(Math.abs(n)%60).padStart(2,'0')}<span class="unit"> min</span>`;const plain=n=>`${Math.floor(Math.abs(n)/60)} h ${String(Math.abs(n)%60).padStart(2,'0')} min`;const count=n=>`${n} ${n===1?'vez':'veces'}`;
@@ -81,13 +81,12 @@ function renderEnhancements(){
  $('saturday-card').hidden=!saturday.days;$('saturday-empty').hidden=!!saturday.days;
  const reviewCount=rows.filter(r=>reviewReason(r)).length;
  $('review-note').textContent=reviewCount?`${reviewCount} ${reviewCount===1?'día para revisar':'días para revisar'}. Se señalan fichajes sin salida y descuentos de 2 horas o más; pueden ser correctos. El saldo conserva las reglas habituales.`:'El detalle usa el primer y último fichaje de cada día.';
- $('export-csv').disabled=!has;$('export-excel').disabled=!has;
+ $('export-excel').disabled=!has;
  $('clear-data').title='Vacía la lectura de esta pestaña y pausa la sincronización. No borra ni modifica fichajes en Lenox.';
 }
 function shiftMonth(delta){const value=neighboringMonth($('from').value,delta,data);if(!value)return;setMonth(value);setFilter('all');compute();renderMonths()}
 $('previous-month').addEventListener('click',()=>shiftMonth(-1));$('next-month').addEventListener('click',()=>shiftMonth(1));
 function downloadExport(content,type,extension){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=`demas-${$('from').value}.${extension}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
-$('export-csv').addEventListener('click',()=>downloadExport(makeCsv(rows),'text/csv;charset=utf-8','csv'));
 $('export-excel').addEventListener('click',()=>downloadExport(makeXlsx(rows),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx'));
 function showChartTooltip(event){const day=event.target.closest('.day');if(!day)return;const tooltip=$('chart-tooltip');tooltip.textContent=day.dataset.tooltip;tooltip.hidden=false;const box=day.getBoundingClientRect();tooltip.style.left=Math.max(12,Math.min(box.left+box.width/2-150,innerWidth-312))+'px';tooltip.style.top=Math.max(12,box.top-64)+'px'}
 $('chart').addEventListener('pointerover',showChartTooltip);$('chart').addEventListener('focusin',showChartTooltip);

@@ -1,1 +1,1 @@
-{"version":"0.4.1","minimumConnectorVersion":"0.3.2","message":"Calendario completo con minutos por día, selector centrado y exportación a Excel con tabla y fechas uniformes."}
+{"version":"0.4.2","minimumConnectorVersion":"0.3.2","message":"Selector de mes sin flecha hacia abajo y exportación solo a Excel."}
