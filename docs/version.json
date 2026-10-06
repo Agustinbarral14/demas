@@ -1,5 +1,5 @@
 {
-  "version": "0.5.1",
+  "version": "0.5.2",
   "minimumConnectorVersion": "0.3.2",
-  "message": "Las correcciones de fichajes y horas extra son temporales: al recargar o actualizar desde Lenox se recuperan los datos originales."
+  "message": "Editar fichajes aparece de forma discreta entre el primer y último horario. Las correcciones siguen siendo temporales."
 }
