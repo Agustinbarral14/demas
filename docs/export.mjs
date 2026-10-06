@@ -1,6 +1,6 @@
 // Exportación local: no usa servicios externos ni transmite los fichajes.
 export const exportHeaders=['Fecha','Primer fichaje','Último fichaje','Extras (min)','Tardanza (min)','Salida anticipada (min)','Saldo (min)','Sábado (min)','Estado'];
-export function exportRows(rows){return rows.map(r=>[r.date,r.first,r.last||'',r.before+r.after,r.late,r.early,r.before+r.after-r.late-r.early,r.saturday?r.saturdayMinutes:0,r.pending?'Provisional':r.incomplete?'Sin salida':'Registrado'])}
+export function exportRows(rows){return rows.map(r=>[r.date,r.first||'',r.last||'',r.before+r.after,r.late,r.early,r.before+r.after-r.late-r.early,r.saturday?r.saturdayMinutes:0,r.hasMarks===false?'Sin fichajes':r.manual?'Corregido manualmente':r.incomplete?'Sin salida':r.pending?'Provisional':'Registrado'])}
 const displayDate=s=>s.split('-').reverse().join('/');
 export function makeCsv(rows){
  const quote=v=>'"'+String(v).replaceAll('"','""')+'"';
@@ -22,7 +22,7 @@ function zip(files){
  const [end,v]=header(22);v.setUint32(0,0x06054b50,true);v.setUint16(8,central.length/2,true);v.setUint16(10,central.length/2,true);v.setUint32(12,size,true);v.setUint32(16,offset,true);
  const all=[...parts,...central,end],result=new Uint8Array(offset+size+22);let position=0;for(const part of all){result.set(part,position);position+=part.length}return result;
 }
-export function makeXlsx(rows){
+export function makeXlsx(rows,summary=null){
  const records=exportRows(rows),last=records.length+1,ref=`A1:I${last}`;
  const stringCell=(col,row,value,style)=>`<c r="${col}${row}" s="${style}" t="inlineStr"><is><t>${xml(value)}</t></is></c>`;
  const body=records.map((record,index)=>{const row=index+2;return `<row r="${row}" ht="24" customHeight="1">`+record.map((value,col)=>{
@@ -34,7 +34,7 @@ export function makeXlsx(rows){
  const relation=(target,type,id='rId1')=>`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/>`;
  const relationships=entries=>`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${entries}</Relationships>`;
  const styles=`<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/><color rgb="FF202D2B"/></font><font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFFFF"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF163C32"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD4DED8"/></left><right style="thin"><color rgb="FFD4DED8"/></right><top style="thin"><color rgb="FFD4DED8"/></top><bottom style="thin"><color rgb="FFD4DED8"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="1" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
- return zip({
+ const files={
   '[Content_Types].xml':types,
   '_rels/.rels':relationships(relation('xl/workbook.xml','officeDocument')),
   'xl/workbook.xml':'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Fichajes" sheetId="1" r:id="rId1"/></sheets></workbook>',
@@ -43,5 +43,13 @@ export function makeXlsx(rows){
   'xl/worksheets/sheet1.xml':`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="${ref}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="15" customWidth="1"/><col min="2" max="3" width="19" customWidth="1"/><col min="4" max="5" width="19" customWidth="1"/><col min="6" max="6" width="27" customWidth="1"/><col min="7" max="9" width="19" customWidth="1"/></cols><sheetData><row r="1" ht="36" customHeight="1">${exportHeaders.map((h,i)=>stringCell(String.fromCharCode(65+i),1,h,1)).join('')}</row>${body}</sheetData><tableParts count="1"><tablePart r:id="rId1"/></tableParts></worksheet>`,
   'xl/worksheets/_rels/sheet1.xml.rels':relationships(relation('../tables/table1.xml','table')),
   'xl/tables/table1.xml':`<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="Fichajes" displayName="Fichajes" ref="${ref}" totalsRowShown="0"><autoFilter ref="${ref}"/><tableColumns count="9">${exportHeaders.map((h,i)=>`<tableColumn id="${i+1}" name="${xml(h)}"/>`).join('')}</tableColumns><tableStyleInfo name="TableStyleMedium4" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>`
- });
+ };
+ if(summary){
+  const entries=[['Extras según fichajes (min)',summary.calculatedExtra],['Ajuste manual del mes (min)',summary.adjustment],['Horas extras sin descuentos (min)',summary.extra],['Tardanzas (min)',summary.late],['Salidas anticipadas (min)',summary.early],['Saldo de horas (min)',summary.net],['Horas de sábados por separado (min)',summary.saturday]];
+  files['[Content_Types].xml']=files['[Content_Types].xml'].replace('</Types>','<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+  files['xl/workbook.xml']=files['xl/workbook.xml'].replace('</sheets>','<sheet name="Resumen" sheetId="2" r:id="rId3"/></sheets>');
+  files['xl/_rels/workbook.xml.rels']=relationships(relation('worksheets/sheet1.xml','worksheet')+relation('styles.xml','styles','rId2')+relation('worksheets/sheet2.xml','worksheet','rId3'));
+  files['xl/worksheets/sheet2.xml']=`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="42" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/></cols><sheetData><row r="1">${stringCell('A',1,'Concepto',1)}${stringCell('B',1,'Minutos',1)}</row>${entries.map(([label,value],i)=>`<row r="${i+2}">${stringCell('A',i+2,label,4)}<c r="B${i+2}" s="3"><v>${Number(value)||0}</v></c></row>`).join('')}</sheetData></worksheet>`;
+ }
+ return zip(files);
 }

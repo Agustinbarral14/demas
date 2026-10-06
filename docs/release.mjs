@@ -1,4 +1,4 @@
-export const APP_VERSION='0.4.6';
+export const APP_VERSION='0.5.0';
 export const MIN_CONNECTOR='0.3.2';
 export function compareVersions(a,b){
  const parse=v=>typeof v==='string'&&/^\d+(\.\d+){0,3}$/.test(v)?v.split('.').map(Number):null;

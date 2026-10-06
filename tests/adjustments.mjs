@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {mergeCorrections,monthCalculation,paymentBalance} from '../docs/adjustments.mjs';
+import {monthDays} from '../docs/calendar.mjs';
+import {exportRows,makeXlsx} from '../docs/export.mjs';
+import {salaryEstimate} from '../docs/salary.mjs';
+const now=new Date(2026,9,5,20),marks=[{date:'2026-09-01',first:'10:00',last:'17:00'},{date:'2026-09-05',first:'08:00',last:'12:00'}];
+const fix={'2026-09-01':{first:'08:30',last:'18:30'},'2026-09-02':{first:'08:00',last:'19:00'}};
+let result=monthCalculation(marks,fix,'2026-09',540,1080,null,now);
+assert.equal(result.totals.extra,180);assert.equal(result.totals.net,180);assert.equal(result.totals.late,0);assert.equal(result.totals.early,0);assert.equal(result.saturday.minutes,240);assert.equal(result.rows[0].manual,true);
+const before=monthCalculation(marks,{},'2026-09',540,1080,null,now);assert.equal(before.totals.net,-120);
+result=monthCalculation(marks,fix,'2026-09',540,1080,90,now);assert.equal(result.totals.extra,90);assert.equal(result.totals.net,90);assert.equal(result.totals.adjustment,-90);assert.equal(result.saturday.minutes,240);
+const month=monthDays('2026-09',result.rows);assert.equal(month.length,30);assert.equal(exportRows(month).length,30);assert.equal(exportRows(month)[29][8],'Sin fichajes');assert.equal(exportRows(month)[29][6],0);assert.equal(exportRows(month)[0][8],'Corregido manualmente');
+const xlsx=makeXlsx(month,{...result.totals,saturday:result.saturday.minutes});const text=new TextDecoder().decode(xlsx);assert.match(text,/sheet2.xml/);assert.match(text,/Ajuste manual del mes/);assert.match(text,/A1:I31/);
+const salary=salaryEstimate({month:'2026-09',category:1,hireDate:'2020-01-01',netMinutes:result.totals.net,saturdayMinutes:result.saturday.minutes,hasAttendance:true,today:'2026-10-05'});assert.equal(salary.extra,Math.round(1.5*6407.71*1.5*100)/100);assert.equal(paymentBalance(salary.total,500000),Math.round((salary.total-500000)*100)/100);
+assert.equal(mergeCorrections(marks,{'2026-09-01':{first:'',last:''}}).length,1);
+assert.throws(()=>mergeCorrections(marks,{'2026-09-01':{first:'19:00',last:'08:00'}}));assert.throws(()=>mergeCorrections(marks,{'2026-09-01':{first:'',last:'18:00'}}));assert.throws(()=>monthCalculation(marks,{},'2026-09',540,1080,-1,now));assert.throws(()=>paymentBalance(1000,-1));
+assert.equal(monthDays('2028-02',[]).length,29);assert.equal(monthDays('2026-10',[]).length,31);
+console.log('Correcciones, descuentos, sábados, sueldo, pagos, validación y Excel: OK');
