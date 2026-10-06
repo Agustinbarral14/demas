@@ -1,11 +1,11 @@
-import {mergeCorrections,monthCalculation,paymentBalance} from './adjustments.mjs?v=0.5.2';
-import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE,SCALES} from './salary.mjs?v=0.5.2';
-import {readWagePhoto} from './wage-photo.mjs?v=0.5.2';
-import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.5.2';
-import {makeXlsx} from './export.mjs?v=0.5.2';
-import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.5.2';
+import {mergeCorrections,monthCalculation,paymentBalance} from './adjustments.mjs?v=0.5.3';
+import {salaryEstimate,WAGE_SOURCE,WAGE_IMAGE,SCALES} from './salary.mjs?v=0.5.3';
+import {readWagePhoto} from './wage-photo.mjs?v=0.5.3';
+import {registeredMonths,neighboringMonth,monthDays} from './calendar.mjs?v=0.5.3';
+import {makeXlsx} from './export.mjs?v=0.5.3';
+import {APP_VERSION,MIN_CONNECTOR,compareVersions,reviewReason} from './release.mjs?v=0.5.3';
 const RESUME_KEY='demas-update-resume';let connectorVersion=null,releaseInfo=null;
-import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.5.2';
+import {monthNames,validMonth,minutes,localDate,parseMarks,calculate,automaticSyncDue} from './core.mjs?v=0.5.3';
 const $=id=>document.getElementById(id);let data=[],active='all',start=540,end=1080,rows=[],totals={},saturday={},source='empty',loadedAt=null,bridge=false,busy=false,connected=false,requestNumber=0;const requests=new Map();
 let accountName='',corrections={},extraOverrides={},payments={},editing=null;
 function personalKey(){return 'demas-personal-v1:'+encodeURIComponent(accountName||'unidentified')}
@@ -163,7 +163,7 @@ function renderEnhancements(){
 function shiftMonth(delta){const value=neighboringMonth($('from').value,delta,mergeCorrections(data,corrections));if(!value)return;setMonth(value);setFilter('all');compute();renderMonths()}
 $('previous-month').addEventListener('click',()=>shiftMonth(-1));$('next-month').addEventListener('click',()=>shiftMonth(1));
 function downloadExport(content,type,extension){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=`demas-${$('from').value}.${extension}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
-$('export-excel').addEventListener('click',()=>downloadExport(makeXlsx(monthDays($('from').value,rows),{...totals,saturday:saturday.minutes||0}),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx'));
+$('export-excel').addEventListener('click',()=>downloadExport(makeXlsx(monthDays($('from').value,rows),{...totals,saturday:saturday.minutes||0},accountName),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx'));
 function showChartTooltip(event){const day=event.target.closest('.day');if(!day)return;const tooltip=$('chart-tooltip');tooltip.textContent=day.dataset.tooltip;tooltip.hidden=false;const box=day.getBoundingClientRect();tooltip.style.left=Math.max(12,Math.min(box.left+box.width/2-150,innerWidth-312))+'px';tooltip.style.top=Math.max(12,box.top-64)+'px'}
 $('chart').addEventListener('pointerover',showChartTooltip);$('chart').addEventListener('focusin',showChartTooltip);
 $('chart').addEventListener('pointerleave',()=>{$('chart-tooltip').hidden=true});$('chart').addEventListener('focusout',()=>{$('chart-tooltip').hidden=true});

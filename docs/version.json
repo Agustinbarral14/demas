@@ -1,5 +1,5 @@
 {
-  "version": "0.5.2",
+  "version": "0.5.3",
   "minimumConnectorVersion": "0.3.2",
-  "message": "Editar fichajes aparece de forma discreta entre el primer y último horario. Las correcciones siguen siendo temporales."
+  "message": "El Excel incluye Nombre como primera columna, repetido en todas las fechas del mes."
 }
