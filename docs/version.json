@@ -1,5 +1,5 @@
 {
-  "version": "0.5.3",
+  "version": "0.6.0",
   "minimumConnectorVersion": "0.3.2",
-  "message": "El Excel incluye Nombre como primera columna, repetido en todas las fechas del mes."
+  "message": "Nuevo diseño con saldo en verde salvia, calendario diario y navegación lateral. Sueldo sigue privado."
 }
